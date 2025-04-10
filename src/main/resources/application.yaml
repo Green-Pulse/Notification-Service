@@ -15,7 +15,7 @@ spring:
   mail:
     host: smtp.mail.ru
     port: 587
-    username: eljan.najafov02@mail.ru
+    username: ${MAIL_APP_USERNAME}
     password: ${MAIL_APP_PASSWORD}
     properties:
       mail:
