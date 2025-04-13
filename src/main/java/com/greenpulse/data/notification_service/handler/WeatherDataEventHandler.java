@@ -1,16 +1,18 @@
 package com.greenpulse.data.notification_service.handler;
 
+import com.greenpulse.data.notification_service.event.UserLoginedEvent;
 import com.greenpulse.data.notification_service.event.WeatherDataEvent;
 import com.greenpulse.data.notification_service.service.MailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.annotation.KafkaHandler;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 @Component
-@KafkaListener(topics = "weather-data-event-topic")
 public class WeatherDataEventHandler {
 
     @Autowired
@@ -18,26 +20,45 @@ public class WeatherDataEventHandler {
 
     private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
 
-    @KafkaHandler
+    // In-memory cache: email -> UserLoginedEvent
+    private final Map<String, UserLoginedEvent> userCache = new ConcurrentHashMap<>();
+
+    @KafkaListener(topics = "user-logged-in-event-topic", groupId = "user-logined-events", containerFactory = "loginedUserKafkaListenerContainerFactory")
+    public void handleLoginEvent(UserLoginedEvent event) {
+        LOGGER.info("Received UserLoginedEvent: {}", event.getEmail());
+
+        if (event.getEmail() != null) {
+            userCache.put(event.getEmail(), event); // store user for later use
+        }
+    }
+
+    @KafkaListener(topics = "weather-data-event-topic", groupId = "weather-data-events", containerFactory = "kafkaListenerContainerFactory")
     public void handleWeatherDataEvent(WeatherDataEvent weatherDataEvent) {
-        LOGGER.info("Received WeatherDataEvent: " + weatherDataEvent.getCity() + ": " + weatherDataEvent.getTemperature());
+        LOGGER.info("Received WeatherDataEvent: {} - {}", weatherDataEvent.getCity(), weatherDataEvent.getTemperature());
 
         try {
+            for (Map.Entry<String, UserLoginedEvent> entry : userCache.entrySet()) {
+                UserLoginedEvent user = entry.getValue();
+                if (user.getRoles() != null && user.getRoles().contains("ADMIN")) {
+                    continue; // skip admins
+                }
 
-            if (weatherDataEvent.getTemperature() > 15.0) {
-                System.out.println("CAUTION: Temperature is too high in " + weatherDataEvent.getCity());
-                String alert = "Temperature is too high in " + weatherDataEvent.getCity() + ": " + weatherDataEvent.getTemperature();
-                mailService.sendAlert("example@gmail.com", "Temperature warning", alert); // hardcoded, лучше брать мейс с JWT, скорее всего сделаю этот сервис secure
-            }
+                String email = entry.getKey();
 
-            if (weatherDataEvent.getHumidity() < 20.0) {
-                System.out.println("CAUTION: Humidity is too low in " + weatherDataEvent.getCity());
-                String alert = "Humidity is too low in " + weatherDataEvent.getCity() + ": " + weatherDataEvent.getHumidity();
-                mailService.sendAlert("example@gmail.com", "Humidity warning", alert);
+                if (weatherDataEvent.getTemperature() > 0) {
+                    String alert = "Temperature is too high in " + weatherDataEvent.getCity() + ": " + weatherDataEvent.getTemperature();
+                    LOGGER.warn(alert + " -> Email: " + email);
+                    mailService.sendAlert(email, "Temperature warning", alert);
+                }
+
+                if (weatherDataEvent.getHumidity() < 20.0) {
+                    String alert = "Humidity is too low in " + weatherDataEvent.getCity() + ": " + weatherDataEvent.getHumidity();
+                    LOGGER.warn(alert + " -> Email: " + email);
+                    mailService.sendAlert(email, "Humidity warning", alert);
+                }
             }
         } catch (Exception e) {
             LOGGER.error("Failed to handle WeatherDataEvent", e);
-            // тут можно логировать или сохранять в отдельную очередь
         }
     }
 }
