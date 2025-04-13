@@ -12,9 +12,12 @@ public class MailService {
     @Autowired
     private JavaMailSender mailSender;
 
+    @Value("${spring.mail.username}")
+    private String username;
+
     public void sendAlert(String to, String subject, String body) {
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom("email@mail.com"); // тот же, что в username properties (yaml)
+        message.setFrom(username); // тот же, что в username properties (yaml)
         message.setTo(to);
         message.setSubject(subject);
         message.setText(body);

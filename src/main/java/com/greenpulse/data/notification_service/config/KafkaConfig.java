@@ -1,5 +1,6 @@
 package com.greenpulse.data.notification_service.config;
 
+import com.greenpulse.data.notification_service.event.UserLoginedEvent;
 import com.greenpulse.data.notification_service.event.WeatherDataEvent;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -47,4 +48,27 @@ public class KafkaConfig {
         return factory;
     }
 
+    // UserLoginedEvent Consumer
+    @Bean
+    public ConsumerFactory<String, UserLoginedEvent> loginedUserConsumerFactory() {
+        JsonDeserializer<UserLoginedEvent> deserializer = new JsonDeserializer<>(UserLoginedEvent.class);
+        deserializer.setRemoveTypeHeaders(false);
+        deserializer.addTrustedPackages("*");
+        deserializer.setUseTypeMapperForKey(true);
+
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "[::1]:9092,[::1]:9094,[::1]:9096");
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "user-logined-events");
+
+        return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(), deserializer);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, UserLoginedEvent> loginedUserKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, UserLoginedEvent> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(loginedUserConsumerFactory());
+        return factory;
+    }
 }
