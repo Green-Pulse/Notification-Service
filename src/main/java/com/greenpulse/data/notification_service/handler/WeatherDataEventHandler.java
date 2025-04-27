@@ -45,7 +45,7 @@ public class WeatherDataEventHandler {
 
                 String email = entry.getKey();
 
-                if (weatherDataEvent.getTemperature() > 0) {
+                if (weatherDataEvent.getTemperature() > 35) {
                     String alert = "Temperature is too high in " + weatherDataEvent.getCity() + ": " + weatherDataEvent.getTemperature();
                     LOGGER.warn(alert + " -> Email: " + email);
                     mailService.sendAlert(email, "Temperature warning", alert);

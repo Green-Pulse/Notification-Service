@@ -3,8 +3,8 @@ server:
 
 spring:
   kafka:
+    bootstrap-servers: kafka-1:9092,kafka-2:9095,kafka-3:9098
     consumer:
-      bootstrap-servers: "[::1]:9092, [::1]:9094, [::1]:9096"
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
